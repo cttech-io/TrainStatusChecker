@@ -13,9 +13,19 @@ if [[ $? -ne 0 ]]; then
 fi
 
 # Extract disruption information using grep and sed
-# (This is a generic example, you'll need to adapt it to your specific webpage)
-disruptions=$(echo "$html" | sed -n 's/.*\(incident: Stansted Express[[:space:]]*[^"]*\)".*/\1/p')
+all_disruptions=""
+while IFS= read -r line; do
+    disruption=$(echo "$line" | sed -n 's/.*\(incident: \(Stansted Express\|Cambridge\)[[:space:]]*[^"]*\)".*/\1/p')
+    if [ -n "$disruption" ]; then
+        all_disruptions+="$disruption"$'\n'
+    fi
+done <<< "$html"
 
+# Remove the trailing newline character
+all_disruptions=$(echo "$all_disruptions" | sed '/^$/d')
+
+# Print all disruptions
+echo "$all_disruptions"
 # Check if any disruptions were found
 if [[ -n "$disruptions" ]]; then
 echo "$disruptions"
