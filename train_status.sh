@@ -13,19 +13,8 @@ if [[ $? -ne 0 ]]; then
 fi
 
 # Extract disruption information using grep and sed
-all_disruptions=""
-while IFS= read -r line; do
-    disruption=$(echo "$line" | sed -n 's/.*\(incident: \(Stansted Express\|Cambridge\)[[:space:]]*[^"]*\)".*/\1/p')
-    if [ -n "$disruption" ]; then
-        all_disruptions+="$disruption"$'\n'
-    fi
-done <<< "$html"
+disruptions=$(echo "$html" | sed -n 's/.*\(incident: Stansted Express[[:space:]]*[^"]*\)".*/\1/p; s/.*\(incident: Cambridge[[:space:]]*[^"]*\)".*/\1/p')
 
-# Remove the trailing newline character
-all_disruptions=$(echo "$all_disruptions" | sed '/^$/d')
-
-# Print all disruptions
-echo "$all_disruptions"
 # Check if any disruptions were found
 if [[ -n "$disruptions" ]]; then
 echo "$disruptions"
