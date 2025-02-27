@@ -1,7 +1,10 @@
 #!/bin/bash
 
 # URL of the train service status page
-url="https://www.nationalrail.co.uk/status-and-disruptions/?mode=train-operator-status"  
+url="https://www.nationalrail.co.uk/status-and-disruptions/?mode=train-operator-status"
+
+# Train operators to monitor
+train_operators=("Stansted Express" "Cambridge" "Greater Anglia")
 
 # Fetch the webpage content
 html=$(curl -s "$url")
@@ -12,12 +15,23 @@ if [[ $? -ne 0 ]]; then
   exit 1
 fi
 
-# Extract disruption information using grep and sed
-disruptions=$(echo "$html" | sed -n 's/.*\(incident: Stansted Express[[:space:]]*[^"]*\)".*/\1/p; s/.*\(incident: Cambridge[[:space:]]*[^"]*\)".*/\1/p')
+disruptions=""
+
+# Loop through train operators and extract disruptions
+for operator in "${train_operators[@]}"; do
+  operator_disruptions=$(echo "$html" | grep "incident: $operator" | sed -n 's/.*\(incident: '"$operator"'[^"]*\)".*/\1/p')
+  if [[ -n "$operator_disruptions" ]]; then
+    if [[ -n "$disruptions" ]]; then
+      disruptions="$disruptions\n$operator_disruptions"
+    else
+      disruptions="$operator_disruptions"
+    fi
+  fi
+done
 
 # Check if any disruptions were found
 if [[ -n "$disruptions" ]]; then
-echo "$disruptions"
+  echo "$disruptions"
 else
   echo "No disruptions found."
 fi
