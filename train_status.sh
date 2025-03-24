@@ -4,7 +4,7 @@
 url="https://www.nationalrail.co.uk/status-and-disruptions/?mode=train-operator-status"
 
 # Train operators to monitor
-train_operators=("Stansted Express" "Cambridge" "Avanti West Coast")
+train_operators=("Stansted Express" "Cambridge")
 
 # Discord Webhook URL
 discord_webhook_url="https://discord.com/api/webhooks/1353631844863709255/-LijAhwOfXvYOhGarHDWnfzZTDOb9TWnpeEzigrY3gMFS9V6qjhzN3wmzmL6tdN_pNev"
