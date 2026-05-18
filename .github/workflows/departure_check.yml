@@ -1,0 +1,45 @@
+name: Departure Check
+
+on:
+  workflow_dispatch:
+    inputs:
+      from_crs:
+        description: 'Departure station CRS code (e.g. LST)'
+        required: true
+        default: 'LST'
+      to_crs:
+        description: 'Destination station CRS code (e.g. BIS)'
+        required: true
+        default: 'BIS'
+      from_name:
+        description: 'Departure station name'
+        required: false
+        default: 'London Liverpool Street'
+      to_name:
+        description: 'Destination station name'
+        required: false
+        default: 'Bishops Stortford'
+  repository_dispatch:
+    types: [departure-check]
+
+concurrency:
+  group: departure-check
+  cancel-in-progress: true
+
+jobs:
+  check-departures:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Check departures
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          RTT_REFRESH_TOKEN: ${{ secrets.RTT_REFRESH_TOKEN }}
+          FROM_CRS: ${{ github.event.inputs.from_crs || github.event.client_payload.from_crs }}
+          TO_CRS: ${{ github.event.inputs.to_crs || github.event.client_payload.to_crs }}
+          FROM_NAME: ${{ github.event.inputs.from_name || github.event.client_payload.from_name || '' }}
+          TO_NAME: ${{ github.event.inputs.to_name || github.event.client_payload.to_name || '' }}
+        run: bash departure_check.sh
