@@ -14,7 +14,7 @@ if [[ -z "$DISCORD_WEBHOOK_URL" ]]; then
 fi
 
 if [[ -z "$TRAIN_OPERATORS" ]]; then
-  echo "Warning: TRAIN_OPERATORS environment variable is not set. Using defaults: Stansted Express, Cambridge"
+  echo "Warning: TRAIN_OPERATORS environment variable is not set. Using defaults: Stansted Express,Cambridge"
   TRAIN_OPERATORS="Stansted Express,Cambridge"
 fi
 
@@ -31,26 +31,29 @@ IFS=',' read -ra OPERATORS <<< "$TRAIN_OPERATORS"
 
 # --- Execution ---
 echo "Fetching webpage content..."
-HTML=$(curl -s "$URL")
+HTML=$(curl -sf "$URL") || { echo "Error fetching webpage: $URL"; exit 1; }
 
-if [[ $? -ne 0 ]]; then
-  echo "Error fetching webpage: $URL"
+if [[ -z "$HTML" ]]; then
+  echo "Error: Empty response from $URL"
   exit 1
 fi
 
 DISRUPTIONS=""
 
 for operator in "${OPERATORS[@]}"; do
-  # Trim whitespace
-  operator=$(echo "$operator" | xargs)
-  
+  # Trim leading/trailing whitespace
+  operator=$(printf '%s' "$operator" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+
   echo "Checking status for: $operator"
-  # Extract disruptions from the HTML
-  OPERATOR_DISRUPTIONS=$(echo "$HTML" | grep -i "incident: $operator" | sed -n 's/.*\(incident: '"$operator"'[^"]*\)".*/\1/p' | sed 's/incident/INCIDENT/')
+
+  # grep -iF uses fixed-string matching so operator name is never treated as a regex.
+  # sed then extracts from "incident: ..." up to the closing quote without embedding
+  # the operator in the regex, avoiding issues with special characters in names.
+  OPERATOR_DISRUPTIONS=$(printf '%s\n' "$HTML" | grep -iF "incident: $operator" | sed -n 's/.*\(incident: [^"]*\)".*/\1/p' | sed 's/incident/INCIDENT/')
 
   if [[ -n "$OPERATOR_DISRUPTIONS" ]]; then
     if [[ -n "$DISRUPTIONS" ]]; then
-      DISRUPTIONS="$DISRUPTIONS\n$OPERATOR_DISRUPTIONS"
+      DISRUPTIONS="${DISRUPTIONS}"$'\n'"${OPERATOR_DISRUPTIONS}"
     else
       DISRUPTIONS="$OPERATOR_DISRUPTIONS"
     fi
@@ -59,11 +62,9 @@ done
 
 if [[ -n "$DISRUPTIONS" ]]; then
   echo "Disruptions found! Sending Discord Embed..."
-  
-  # Get current timestamp in ISO8601 format
+
   TIMESTAMP=$(date -u +%Y-%m-%dT%H:%M:%SZ)
-  
-  # Format the payload for Discord using an Embed
+
   # Color 15158332 is a shade of red
   PAYLOAD=$(jq -n \
     --arg content "$DISRUPTIONS" \

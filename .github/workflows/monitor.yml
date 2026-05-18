@@ -4,16 +4,21 @@ on:
   schedule:
     # Run every 30 minutes
     - cron: '*/30 * * * *'
-  workflow_dispatch: # Allows manual triggering from the GitHub UI
+  workflow_dispatch:
     inputs:
       operators:
         description: 'Comma-separated list of train operators'
         required: false
         default: 'Stansted Express,Cambridge'
 
+concurrency:
+  group: train-status-monitor
+  cancel-in-progress: false
+
 jobs:
   check-status:
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -22,6 +27,4 @@ jobs:
         env:
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
           TRAIN_OPERATORS: ${{ github.event.inputs.operators || vars.TRAIN_OPERATORS || 'Stansted Express,Cambridge' }}
-        run: |
-          chmod +x train_status.sh
-          ./train_status.sh
+        run: bash train_status.sh
