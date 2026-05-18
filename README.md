@@ -39,8 +39,20 @@ export TRAIN_OPERATORS="Stansted Express,Cambridge"
 ./train_status.sh
 ```
 
+### Automation (GitHub Actions)
+This repository is configured to run automatically every 30 minutes via GitHub Actions. To set this up:
+
+1.  Go to your repository on GitHub.
+2.  Navigate to **Settings** > **Secrets and variables** > **Actions**.
+3.  In the **Secrets** tab, click **New repository secret**:
+    *   Name: `DISCORD_WEBHOOK_URL`
+    *   Value: *[Your Discord Webhook URL]*
+4.  In the **Variables** tab, click **New repository variable**:
+    *   Name: `TRAIN_OPERATORS`
+    *   Value: `Stansted Express,Cambridge` (or your preferred operators)
+
 ### Automation (Cron)
-To run the script every 30 minutes, add the following to your `crontab -e`:
+If you prefer to run it locally, add the following to your `crontab -e`:
 ```cron
 */30 * * * * DISCORD_WEBHOOK_URL="your_url" TRAIN_OPERATORS="Stansted Express,Cambridge" /path/to/train_status.sh
 ```

@@ -1,0 +1,22 @@
+name: Monitor Train Status
+
+on:
+  schedule:
+    # Run every 30 minutes
+    - cron: '*/30 * * * *'
+  workflow_dispatch: # Allows manual triggering from the GitHub UI
+
+jobs:
+  check-status:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Run status checker
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          TRAIN_OPERATORS: ${{ vars.TRAIN_OPERATORS }}
+        run: |
+          chmod +x train_status.sh
+          ./train_status.sh
