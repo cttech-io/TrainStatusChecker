@@ -14,8 +14,8 @@ if [[ -z "$DISCORD_WEBHOOK_URL" ]]; then
 fi
 
 if [[ -z "$TRAIN_OPERATORS" ]]; then
-  echo "Error: TRAIN_OPERATORS environment variable is not set."
-  exit 1
+  echo "Warning: TRAIN_OPERATORS environment variable is not set. Using defaults: Stansted Express, Cambridge"
+  TRAIN_OPERATORS="Stansted Express,Cambridge"
 fi
 
 # Check for dependencies
