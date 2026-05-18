@@ -61,7 +61,3 @@ To trigger a manual run, go to **Actions** > **Monitor Train Status** > **Run wo
 ```cron
 */30 * * * * DISCORD_WEBHOOK_URL="your_url" TRAIN_OPERATORS="Stansted Express,Cambridge" /path/to/train_status.sh
 ```
-
-## Security
-
-Never commit your `DISCORD_WEBHOOK_URL` to a public repository. If you have previously done so, delete the webhook in Discord and create a new one.
