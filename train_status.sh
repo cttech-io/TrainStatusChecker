@@ -58,8 +58,30 @@ for operator in "${OPERATORS[@]}"; do
 done
 
 if [[ -n "$DISRUPTIONS" ]]; then
-  echo "Disruptions found! Sending notification..."
-  PAYLOAD=$(jq -n --arg content "$DISRUPTIONS" '{content: $content}')
+  echo "Disruptions found! Sending Discord Embed..."
+  
+  # Get current timestamp in ISO8601 format
+  TIMESTAMP=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+  
+  # Format the payload for Discord using an Embed
+  # Color 15158332 is a shade of red
+  PAYLOAD=$(jq -n \
+    --arg content "$DISRUPTIONS" \
+    --arg title "⚠️ Train Service Alert" \
+    --arg timestamp "$TIMESTAMP" \
+    --arg url "$URL" \
+    '{
+      embeds: [{
+        title: $title,
+        description: $content,
+        url: $url,
+        color: 15158332,
+        timestamp: $timestamp,
+        footer: {
+          text: "National Rail Status Monitor"
+        }
+      }]
+    }')
 
   CURL_RESULT=$(curl -s -o /dev/null -w "%{http_code}" -H "Content-Type: application/json" -d "$PAYLOAD" "$DISCORD_WEBHOOK_URL")
 

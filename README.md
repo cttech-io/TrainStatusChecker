@@ -4,7 +4,7 @@ A simple Bash script to monitor National Rail train operator status and send not
 
 ## Features
 - Monitors specific train operators for disruptions.
-- Sends formatted notifications to a Discord channel via Webhooks.
+- Sends professional **Discord Rich Embeds** (colored sidebars, timestamps, and links).
 - Configurable via environment variables (no hardcoded secrets).
 - Dependency checks for `curl` and `jq`.
 
