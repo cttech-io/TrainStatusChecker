@@ -94,4 +94,32 @@ if [[ -n "$DISRUPTIONS" ]]; then
   fi
 else
   echo "No disruptions found for monitored operators."
+  if [[ "$NOTIFY_ALWAYS" == "true" ]]; then
+    echo "Manual run: sending all-clear notification..."
+    TIMESTAMP=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+    PAYLOAD=$(jq -n \
+      --arg title "✅ No Train Disruptions" \
+      --arg desc "All monitored operators are running normally." \
+      --arg timestamp "$TIMESTAMP" \
+      --arg url "$URL" \
+      '{
+        embeds: [{
+          title: $title,
+          description: $desc,
+          url: $url,
+          color: 3066993,
+          timestamp: $timestamp,
+          footer: {
+            text: "National Rail Status Monitor"
+          }
+        }]
+      }')
+    CURL_RESULT=$(curl -s -o /dev/null -w "%{http_code}" -H "Content-Type: application/json" -d "$PAYLOAD" "$DISCORD_WEBHOOK_URL")
+    if [[ $CURL_RESULT -ne 200 && $CURL_RESULT -ne 204 ]]; then
+      echo "Error sending Discord webhook. HTTP Status: $CURL_RESULT"
+      exit 1
+    else
+      echo "Discord all-clear notification sent successfully."
+    fi
+  fi
 fi

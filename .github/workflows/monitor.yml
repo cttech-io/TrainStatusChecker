@@ -27,4 +27,5 @@ jobs:
         env:
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
           TRAIN_OPERATORS: ${{ github.event.inputs.operators || vars.TRAIN_OPERATORS || 'Stansted Express,Cambridge' }}
+          NOTIFY_ALWAYS: ${{ github.event_name == 'workflow_dispatch' }}
         run: bash train_status.sh
