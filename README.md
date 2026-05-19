@@ -9,13 +9,13 @@ Two tools for National Rail, both sending results to Discord:
 
 ## Prerequisites
 
-- `curl`
-- `jq`
+- Python 3
+- `pip install -r requirements.txt` (`requests`, `beautifulsoup4`)
 - A Discord webhook URL
 
 ---
 
-## Disruption Monitor (`train_status.sh`)
+## Disruption Monitor (`train_status.py`)
 
 Polls [National Rail](https://www.nationalrail.co.uk/status-and-disruptions/) for disruptions on specified operators.
 
@@ -40,20 +40,21 @@ Polls [National Rail](https://www.nationalrail.co.uk/status-and-disruptions/) fo
 ### Run locally
 
 ```bash
+pip install -r requirements.txt
 export DISCORD_WEBHOOK_URL="your_url"
 export TRAIN_OPERATORS="Stansted Express,Cambridge"
-bash train_status.sh
+python3 train_status.py
 ```
 
 ### Run via cron
 
 ```cron
-*/30 * * * * DISCORD_WEBHOOK_URL="your_url" TRAIN_OPERATORS="Stansted Express,Cambridge" /path/to/train_status.sh
+*/30 * * * * DISCORD_WEBHOOK_URL="your_url" TRAIN_OPERATORS="Stansted Express,Cambridge" /path/to/.venv/bin/python3 /path/to/train_status.py
 ```
 
 ---
 
-## Departure Checker (`departure_check.sh`)
+## Departure Checker (`departure_check.py`)
 
 When triggered, queries the [Realtime Trains API](https://api-portal.rtt.io/) for the next 3 departures from a given station to a given destination, and sends a Discord notification showing the departure time, platform, and arrival time for each service. Delayed trains show the original scheduled time with a strikethrough.
 
@@ -71,7 +72,20 @@ Go to **Settings** > **Secrets and variables** > **Actions** and add:
 
 `DISCORD_WEBHOOK_URL` is shared with the disruption monitor — add it once.
 
-### 3. Trigger manually
+### 3. Run locally
+
+```bash
+pip install -r requirements.txt
+export DISCORD_WEBHOOK_URL="your_url"
+export RTT_REFRESH_TOKEN="your_jwt"
+export FROM_CRS="LST"
+export TO_CRS="BIS"
+export FROM_NAME="London Liverpool Street"
+export TO_NAME="Bishops Stortford"
+python3 departure_check.py
+```
+
+### 4. Trigger manually via GitHub Actions
 
 Go to **Actions** > **Departure Check** > **Run workflow** and fill in the station CRS codes. Use this to test before setting up Home Assistant.
 
@@ -88,7 +102,7 @@ Common CRS codes:
 
 A full list is available at [nationalrail.co.uk/stations](https://www.nationalrail.co.uk/stations/).
 
-### 4. Home Assistant integration
+### 5. Home Assistant integration
 
 This is the main way to trigger the departure checker automatically when you arrive at a station.
 
@@ -99,8 +113,6 @@ In Home Assistant, go to **Settings** > **Areas & Zones** > **Zones** and add a 
 #### Create a GitHub Personal Access Token
 
 Go to **GitHub** > **Settings** > **Developer settings** > **Personal access tokens** > **Fine-grained tokens** and create a token scoped to this repository with **Contents: Read and Write** permission (required to trigger `repository_dispatch`).
-
-Store it in Home Assistant as a secret (`github_pat`) or in an `input_text` helper.
 
 #### Add a REST command
 
@@ -121,6 +133,8 @@ rest_command:
 
 #### Create an automation for each station
 
+Add entries like this to your `automations.yaml`:
+
 ```yaml
 - id: '1749999999999'
   alias: "Trains at Liverpool Street → Bishops Stortford"
@@ -140,8 +154,8 @@ rest_command:
   mode: single
 ```
 
-Duplicate this automation for each station/destination pair you need. The GitHub Actions job typically starts within 30–60 seconds of the trigger, so the Discord notification will arrive shortly after you reach the station.
+Duplicate for each station/destination pair. The GitHub Actions job typically starts within 30–60 seconds of the trigger, so the Discord notification arrives shortly after you reach the station.
 
 #### iOS and Android
 
-The Home Assistant companion app for both iOS and Android reports location to HA automatically. Ensure **Background App Refresh** (iOS) or **Background Location** (Android) is enabled for the app, and that the device tracker entity matches `device_tracker.your_phone` in the automation above.
+The Home Assistant companion app for both iOS and Android reports location automatically. Ensure **Background App Refresh** (iOS) or **Background Location** (Android) is enabled, and that the device tracker entity matches `device_tracker.your_phone` in the automation above.
