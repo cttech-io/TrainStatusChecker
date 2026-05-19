@@ -116,7 +116,14 @@ Go to **GitHub** > **Settings** > **Developer settings** > **Personal access tok
 
 #### Add a REST command
 
-Add this to your `configuration.yaml`:
+Add your GitHub PAT to Home Assistant's `secrets.yaml` (never put tokens directly in `configuration.yaml`):
+
+```yaml
+# secrets.yaml
+github_pat: YOUR_GITHUB_PAT
+```
+
+Then add this to `configuration.yaml`:
 
 ```yaml
 rest_command:
@@ -124,7 +131,7 @@ rest_command:
     url: "https://api.github.com/repos/cttech-io/TrainStatusChecker/dispatches"
     method: POST
     headers:
-      Authorization: "Bearer YOUR_GITHUB_PAT"
+      Authorization: "Bearer !secret github_pat"
       Accept: "application/vnd.github.v3+json"
     payload: >-
       {"event_type":"departure-check","client_payload":{"from_crs":"{{ from_crs }}","to_crs":"{{ to_crs }}","from_name":"{{ from_name }}","to_name":"{{ to_name }}"}}
