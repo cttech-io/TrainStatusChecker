@@ -34,6 +34,9 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
       - name: Check departures
         env:
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
@@ -42,4 +45,4 @@ jobs:
           TO_CRS: ${{ github.event.inputs.to_crs || github.event.client_payload.to_crs }}
           FROM_NAME: ${{ github.event.inputs.from_name || github.event.client_payload.from_name || '' }}
           TO_NAME: ${{ github.event.inputs.to_name || github.event.client_payload.to_name || '' }}
-        run: bash departure_check.sh
+        run: python3 departure_check.py
