@@ -23,9 +23,12 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
       - name: Run status checker
         env:
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
           TRAIN_OPERATORS: ${{ github.event.inputs.operators || vars.TRAIN_OPERATORS || 'Stansted Express,Cambridge' }}
           NOTIFY_ALWAYS: ${{ github.event_name == 'workflow_dispatch' }}
-        run: bash train_status.sh
+        run: python3 train_status.py
