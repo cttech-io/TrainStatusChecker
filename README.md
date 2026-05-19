@@ -55,7 +55,7 @@ bash train_status.sh
 
 ## Departure Checker (`departure_check.sh`)
 
-When triggered, queries the [Realtime Trains API](https://api.rtt.io/) for the next 3 departures from a given station to a given destination, and sends a Discord notification showing the departure time, platform, and arrival time for each service. Delayed trains show the original scheduled time with a strikethrough.
+When triggered, queries the [Realtime Trains API](https://api-portal.rtt.io/) for the next 3 departures from a given station to a given destination, and sends a Discord notification showing the departure time, platform, and arrival time for each service. Delayed trains show the original scheduled time with a strikethrough.
 
 ### 1. Register for the Realtime Trains API
 
@@ -122,19 +122,22 @@ rest_command:
 #### Create an automation for each station
 
 ```yaml
-alias: "Trains at Liverpool Street → Bishops Stortford"
-trigger:
-  - platform: zone
+- id: '1749999999999'
+  alias: "Trains at Liverpool Street → Bishops Stortford"
+  triggers:
+  - trigger: zone
     entity_id: device_tracker.your_phone
     zone: zone.london_liverpool_street
     event: enter
-action:
-  - service: rest_command.train_departure_check
+  conditions: []
+  actions:
+  - action: rest_command.train_departure_check
     data:
       from_crs: "LST"
       to_crs: "BIS"
       from_name: "London Liverpool Street"
       to_name: "Bishops Stortford"
+  mode: single
 ```
 
 Duplicate this automation for each station/destination pair you need. The GitHub Actions job typically starts within 30–60 seconds of the trigger, so the Discord notification will arrive shortly after you reach the station.
