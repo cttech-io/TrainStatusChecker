@@ -9,7 +9,7 @@ on:
       operators:
         description: 'Comma-separated list of train operators'
         required: false
-        default: 'Stansted Express,Cambridge'
+        default: 'Greater Anglia,Stansted Express,Cambridge'
 
 concurrency:
   group: train-status-monitor
@@ -29,6 +29,6 @@ jobs:
       - name: Run status checker
         env:
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
-          TRAIN_OPERATORS: ${{ github.event.inputs.operators || vars.TRAIN_OPERATORS || 'Stansted Express,Cambridge' }}
+          TRAIN_OPERATORS: ${{ github.event.inputs.operators || vars.TRAIN_OPERATORS || 'Greater Anglia,Stansted Express,Cambridge' }}
           NOTIFY_ALWAYS: ${{ github.event_name == 'workflow_dispatch' }}
         run: python3 train_status.py

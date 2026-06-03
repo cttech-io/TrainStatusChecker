@@ -10,7 +10,7 @@ from datetime import datetime, timezone
 URL = "https://www.nationalrail.co.uk/status-and-disruptions/?mode=train-operator-status"
 
 discord_webhook = os.environ.get("DISCORD_WEBHOOK_URL")
-train_operators = os.environ.get("TRAIN_OPERATORS", "Stansted Express,Cambridge")
+train_operators = os.environ.get("TRAIN_OPERATORS", "Greater Anglia,Stansted Express,Cambridge")
 notify_always = os.environ.get("NOTIFY_ALWAYS", "false").lower() == "true"
 
 if not discord_webhook:
@@ -44,9 +44,9 @@ disruptions = []
 
 for operator in operators:
     print(f"Checking status for: {operator}")
-    matches = soup.find_all(string=re.compile(f"incident: {re.escape(operator)}", re.IGNORECASE))
+    matches = soup.find_all(string=re.compile(f"incidents?: {re.escape(operator)}", re.IGNORECASE))
     for match in matches:
-        text = re.sub(r"incident:", "INCIDENT:", match.strip(), flags=re.IGNORECASE)
+        text = re.sub(r"incidents?:", "INCIDENT:", match.strip(), flags=re.IGNORECASE)
         disruptions.append(text)
 
 timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
