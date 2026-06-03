@@ -87,17 +87,13 @@ for from_crs, to_crs in routes:
     if not services:
         continue
 
-    # Print structure of first service for debugging field names
-    import json
-    print(f"  [debug] first service: {json.dumps(services[0], indent=2)}")
-
     for service in services[:5]:
         identity = service.get("scheduleMetadata", {}).get("identity", "?")
         departure = service.get("temporalData", {}).get("departure", {})
         sched_dep = departure.get("scheduleAdvertised", "")
         sched_time = sched_dep[11:16] if len(sched_dep) >= 16 else sched_dep
 
-        is_cancelled = service.get("realtimeCancelled", False)
+        is_cancelled = departure.get("isCancelled", False)
 
         delay_mins = 0
         if not is_cancelled:
