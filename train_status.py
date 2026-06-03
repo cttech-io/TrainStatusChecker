@@ -88,7 +88,8 @@ for from_crs, to_crs in routes:
         continue
 
     # Print structure of first service for debugging field names
-    print(f"  [debug] first service keys: {list(services[0].keys())}")
+    import json
+    print(f"  [debug] first service: {json.dumps(services[0], indent=2)}")
 
     for service in services[:5]:
         identity = service.get("scheduleMetadata", {}).get("identity", "?")
