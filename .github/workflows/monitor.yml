@@ -31,12 +31,6 @@ jobs:
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
           RTT_REFRESH_TOKEN: ${{ secrets.RTT_REFRESH_TOKEN }}
           ROUTES: ${{ github.event.inputs.routes || vars.ROUTES || 'LST:BIS' }}
+          OPERATOR_CODES: ${{ vars.OPERATOR_CODES || 'LE,SX' }}
           NOTIFY_ALWAYS: ${{ github.event_name == 'workflow_dispatch' }}
         run: python3 train_status.py
-  debug-disruptions:
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
-      - run: pip install requests beautifulsoup4
-      - run: python3 fetch_disruptions_debug.py
