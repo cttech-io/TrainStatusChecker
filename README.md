@@ -10,27 +10,33 @@ Two tools for National Rail, both sending results to Discord:
 ## Prerequisites
 
 - Python 3
-- `pip install -r requirements.txt` (`requests`, `beautifulsoup4`)
+- `pip install -r requirements.txt` (`requests`)
 - A Discord webhook URL
 
 ---
 
 ## Disruption Monitor (`train_status.py`)
 
-Polls [National Rail](https://www.nationalrail.co.uk/status-and-disruptions/) for disruptions on specified operators.
+Two checks run on every execution:
+
+1. **RTT API** — detects formally cancelled or delayed (≥5 min) services on the configured routes
+2. **National Rail status page** — detects active unplanned incidents by operator code, catching line blockages before individual services are cancelled in the system
 
 ### Configuration
 
 | Variable | Required | Description |
 |---|---|---|
 | `DISCORD_WEBHOOK_URL` | Yes | Your Discord webhook URL |
-| `TRAIN_OPERATORS` | No | Comma-separated operators to monitor (default: `Stansted Express,Cambridge`) |
+| `RTT_REFRESH_TOKEN` | Yes | JWT token from [api-portal.rtt.io](https://api-portal.rtt.io/) |
+| `ROUTES` | No | Comma-separated `FROM:TO` CRS pairs to check for delays/cancellations (default: `LST:BIS`) |
+| `OPERATOR_CODES` | No | Comma-separated National Rail operator codes to watch for incidents (default: `LE,SX` — Greater Anglia and Stansted Express) |
+| `DELAY_THRESHOLD_MINS` | No | Minutes late before a delay is reported (default: `5`) |
 
 ### GitHub Actions setup
 
 1. Go to **Settings** > **Secrets and variables** > **Actions**.
-2. Under **Secrets**, add `DISCORD_WEBHOOK_URL`.
-3. Under **Variables**, optionally add `TRAIN_OPERATORS`.
+2. Under **Secrets**, add `DISCORD_WEBHOOK_URL` and `RTT_REFRESH_TOKEN`.
+3. Under **Variables**, optionally add `ROUTES` and `OPERATOR_CODES`.
 
 | Trigger | Behaviour |
 |---|---|
@@ -42,14 +48,16 @@ Polls [National Rail](https://www.nationalrail.co.uk/status-and-disruptions/) fo
 ```bash
 pip install -r requirements.txt
 export DISCORD_WEBHOOK_URL="your_url"
-export TRAIN_OPERATORS="Stansted Express,Cambridge"
+export RTT_REFRESH_TOKEN="your_jwt"
+export ROUTES="LST:BIS"
+export OPERATOR_CODES="LE,SX"
 python3 train_status.py
 ```
 
 ### Run via cron
 
 ```cron
-*/30 * * * * DISCORD_WEBHOOK_URL="your_url" TRAIN_OPERATORS="Stansted Express,Cambridge" /path/to/.venv/bin/python3 /path/to/train_status.py
+*/30 * * * * DISCORD_WEBHOOK_URL="your_url" RTT_REFRESH_TOKEN="your_jwt" ROUTES="LST:BIS" OPERATOR_CODES="LE,SX" /path/to/.venv/bin/python3 /path/to/train_status.py
 ```
 
 ---
