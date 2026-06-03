@@ -6,10 +6,10 @@ on:
     - cron: '*/30 * * * *'
   workflow_dispatch:
     inputs:
-      operators:
-        description: 'Comma-separated list of train operators'
+      routes:
+        description: 'Comma-separated routes as FROM:TO CRS pairs (e.g. LST:BIS,LST:CBG)'
         required: false
-        default: 'Stansted Express,Cambridge'
+        default: 'LST:BIS'
 
 concurrency:
   group: train-status-monitor
@@ -29,6 +29,8 @@ jobs:
       - name: Run status checker
         env:
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
-          TRAIN_OPERATORS: ${{ github.event.inputs.operators || vars.TRAIN_OPERATORS || 'Stansted Express,Cambridge' }}
+          RTT_REFRESH_TOKEN: ${{ secrets.RTT_REFRESH_TOKEN }}
+          ROUTES: ${{ github.event.inputs.routes || vars.ROUTES || 'LST:BIS' }}
+          OPERATOR_CODES: ${{ vars.OPERATOR_CODES || 'LE,SX' }}
           NOTIFY_ALWAYS: ${{ github.event_name == 'workflow_dispatch' }}
         run: python3 train_status.py
