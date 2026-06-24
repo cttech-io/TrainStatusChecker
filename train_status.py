@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 
-import os
-import sys
-import re
 import json
+import os
+import re
+import sys
 import requests
 from datetime import datetime, timezone
 
@@ -11,6 +11,7 @@ RTT_BASE = "https://data.rtt.io"
 RTT_URL = "https://www.realtimetrains.co.uk/"
 NR_STATUS_URL = "https://www.nationalrail.co.uk/status-and-disruptions/?mode=train-operator-status"
 NR_DISRUPTIONS_URL = "https://www.nationalrail.co.uk/status-and-disruptions"
+STATE_FILE = "state.json"
 
 NR_HEADERS = {
     "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
@@ -45,8 +46,8 @@ if not routes:
 watched_operators = {c.strip().upper() for c in operator_codes_env.split(",") if c.strip()}
 
 
-def send_discord(payload):
-    r = requests.post(discord_webhook, json=payload, timeout=10)
+def send_discord(embed):
+    r = requests.post(discord_webhook, json={"embeds": [embed]}, timeout=10)
     if r.status_code not in (200, 204):
         print(f"Error sending Discord notification. HTTP {r.status_code}")
         sys.exit(1)
@@ -59,6 +60,19 @@ def parse_time(ts):
         return datetime.fromisoformat(ts.replace("Z", "+00:00"))
     except ValueError:
         return None
+
+
+def load_state():
+    try:
+        with open(STATE_FILE) as f:
+            return json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError):
+        return {"nr": {}, "rtt": {}}
+
+
+def save_state(state):
+    with open(STATE_FILE, "w") as f:
+        json.dump(state, f)
 
 
 def get_route_stations(from_crs, to_crs, auth):
@@ -112,34 +126,35 @@ def get_route_stations(from_crs, to_crs, auth):
     return station_names
 
 
-def get_nr_disruption_alerts(route_station_names):
+def get_nr_disruptions(route_station_names):
+    """Return active disruptions as {slug: {summary, label}}, filtered to the commute route."""
     print("Checking National Rail disruptions page...")
     try:
         r = requests.get(NR_STATUS_URL, headers=NR_HEADERS, timeout=15)
         if r.status_code != 200:
             print(f"Warning: National Rail status page returned HTTP {r.status_code}")
-            return []
+            return {}
     except requests.RequestException as e:
         print(f"Warning: Failed to fetch National Rail status: {e}")
-        return []
+        return {}
 
     m = re.search(r'<script id="__NEXT_DATA__"[^>]*>(.*?)</script>', r.text, re.DOTALL)
     if not m:
         print("Warning: Could not find __NEXT_DATA__ on National Rail status page")
-        return []
+        return {}
 
     try:
         page_props = json.loads(m.group(1)).get("props", {}).get("pageProps", {})
     except json.JSONDecodeError:
         print("Warning: Failed to parse National Rail __NEXT_DATA__ JSON")
-        return []
+        return {}
 
     disruptions = page_props.get("data", {}).get("disruptionsData", {}).get("disruptions", [])
     print(f"  {len(disruptions)} total disruption(s) listed on National Rail")
 
     route_stations_lower = {name.lower() for name in route_station_names}
+    result = {}
 
-    alerts = []
     for d in disruptions:
         if d.get("incidentCleared"):
             continue
@@ -163,10 +178,11 @@ def get_nr_disruption_alerts(route_station_names):
         matched_names = ", ".join(
             op["name"] for op in operators if op.get("code", "").upper() in watched_operators
         )
-        print(f"  DISRUPTION ({matched_names}): {summary}")
-        alerts.append(f"**{matched_names}**: {summary}")
+        slug = d.get("slug") or summary[:60]
+        print(f"  Active ({matched_names}): {summary}")
+        result[slug] = {"summary": summary, "label": matched_names}
 
-    return alerts
+    return result
 
 
 # --- Get RTT access token ---
@@ -187,6 +203,11 @@ if not access_token:
 
 auth = {"Authorization": f"Bearer {access_token}"}
 
+# --- Load previous state ---
+prev_state = load_state()
+prev_nr = prev_state.get("nr", {})
+prev_rtt = prev_state.get("rtt", {})
+
 # --- Build route station list from live timetable ---
 all_route_stations = set()
 for from_crs, to_crs in routes:
@@ -196,9 +217,8 @@ for from_crs, to_crs in routes:
         print(f"  Stations: {', '.join(stations)}")
         all_route_stations.update(stations)
 
-disruptions = []
-
 # --- Check RTT for cancelled/delayed trains ---
+current_rtt = {}
 for from_crs, to_crs in routes:
     print(f"Checking {from_crs} → {to_crs}...")
     r = requests.get(
@@ -211,12 +231,8 @@ for from_crs, to_crs in routes:
         print(f"Warning: API error for {from_crs}→{to_crs}: HTTP {r.status_code}")
         continue
 
-    data = r.json()
-    services = data.get("services") or []
+    services = r.json().get("services") or []
     print(f"  {len(services)} upcoming service(s)")
-
-    if not services:
-        continue
 
     for service in services[:5]:
         identity = service.get("scheduleMetadata", {}).get("identity", "?")
@@ -238,52 +254,98 @@ for from_crs, to_crs in routes:
         if is_cancelled:
             msg = f"{from_crs}→{to_crs} {sched_time}: Cancelled (service {identity})"
             print(f"  CANCELLED: {msg}")
-            disruptions.append(msg)
+            current_rtt[identity] = msg
         elif delay_mins >= delay_threshold_mins:
             msg = f"{from_crs}→{to_crs} {sched_time}: Delayed {int(delay_mins)} min (service {identity})"
             print(f"  DELAYED: {msg}")
-            disruptions.append(msg)
+            current_rtt[identity] = msg
 
 # --- Check National Rail disruption alerts ---
-nr_alerts = get_nr_disruption_alerts(list(all_route_stations))
+current_nr = get_nr_disruptions(list(all_route_stations))
+
+# --- Diff against previous state ---
+nr_new     = {s: d for s, d in current_nr.items() if s not in prev_nr}
+nr_changed = {s: d for s, d in current_nr.items() if s in prev_nr and prev_nr[s]["summary"] != d["summary"]}
+nr_cleared = {s: d for s, d in prev_nr.items() if s not in current_nr}
+rtt_new    = {i: m for i, m in current_rtt.items() if i not in prev_rtt or prev_rtt[i] != m}
+
+# --- Save updated state ---
+save_state({"nr": current_nr, "rtt": current_rtt})
 
 timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
-if disruptions or nr_alerts:
-    print("Disruptions found! Sending Discord notification...")
-    embeds = []
-    if disruptions:
-        embeds.append({
+if notify_always:
+    # Manual run: show full current state regardless of previous state
+    sent = False
+    if current_rtt:
+        send_discord({
             "title": "⚠️ Train Service Disruptions",
-            "description": "\n".join(disruptions),
+            "description": "\n".join(current_rtt.values()),
             "url": RTT_URL,
             "color": 15158332,
             "timestamp": timestamp,
             "footer": {"text": "National Rail · Realtime Trains"},
         })
-    if nr_alerts:
-        embeds.append({
+        sent = True
+    if current_nr:
+        send_discord({
             "title": "⚠️ National Rail Disruption Alert",
-            "description": "\n".join(nr_alerts),
+            "description": "\n".join(f"**{d['label']}**: {d['summary']}" for d in current_nr.values()),
             "url": NR_DISRUPTIONS_URL,
             "color": 15105570,
             "timestamp": timestamp,
             "footer": {"text": "National Rail"},
         })
-    send_discord({"embeds": embeds})
-    print("Discord notification sent successfully.")
-elif notify_always:
-    print("No disruptions found. Sending all-clear notification...")
-    send_discord({
-        "embeds": [{
+        sent = True
+    if not sent:
+        send_discord({
             "title": "✅ No Train Disruptions",
             "description": "All monitored routes and operators are running normally.",
             "url": RTT_URL,
             "color": 3066993,
             "timestamp": timestamp,
             "footer": {"text": "National Rail · Realtime Trains"},
-        }]
-    })
-    print("Discord all-clear notification sent successfully.")
+        })
+    print("Discord notification sent successfully.")
+
+elif nr_new or nr_changed or nr_cleared or rtt_new:
+    # Scheduled run: only notify on changes
+    if rtt_new:
+        send_discord({
+            "title": "⚠️ Train Service Disruptions",
+            "description": "\n".join(rtt_new.values()),
+            "url": RTT_URL,
+            "color": 15158332,
+            "timestamp": timestamp,
+            "footer": {"text": "National Rail · Realtime Trains"},
+        })
+
+    nr_alert_msgs = (
+        [f"**{d['label']}**: {d['summary']}" for d in nr_new.values()] +
+        [f"**{d['label']}** *(updated)*: {d['summary']}" for d in nr_changed.values()]
+    )
+    if nr_alert_msgs:
+        send_discord({
+            "title": "⚠️ National Rail Disruption Alert",
+            "description": "\n".join(nr_alert_msgs),
+            "url": NR_DISRUPTIONS_URL,
+            "color": 15105570,
+            "timestamp": timestamp,
+            "footer": {"text": "National Rail"},
+        })
+
+    if nr_cleared:
+        cleared_msgs = [f"**{d['label']}**: {d['summary']}" for d in nr_cleared.values()]
+        send_discord({
+            "title": "✅ Disruption Cleared",
+            "description": "\n".join(cleared_msgs),
+            "url": NR_DISRUPTIONS_URL,
+            "color": 3066993,
+            "timestamp": timestamp,
+            "footer": {"text": "National Rail"},
+        })
+
+    print("Changes detected. Discord notification(s) sent successfully.")
+
 else:
-    print("No disruptions found for monitored routes.")
+    print("No changes since last run. Skipping notification.")
