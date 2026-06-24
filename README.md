@@ -2,7 +2,7 @@
 
 Two tools for National Rail, both sending results to Discord:
 
-- **Disruption Monitor** — runs every 30 minutes via GitHub Actions and alerts when a monitored operator has a disruption
+- **Disruption Monitor** — runs every 30 minutes via GitHub Actions and alerts when there is a disruption or cancellation on your commute route
 - **Departure Checker** — triggered by Home Assistant when you arrive at a station, showing the next 3 trains to your destination with platform and arrival time
 
 ---
@@ -20,7 +20,7 @@ Two tools for National Rail, both sending results to Discord:
 Two checks run on every execution:
 
 1. **RTT API** — detects formally cancelled or delayed (≥5 min) services on the configured routes
-2. **National Rail status page** — detects active unplanned incidents by operator code, catching line blockages before individual services are cancelled in the system
+2. **National Rail status page** — detects active unplanned incidents for the configured operators, filtered to only those relevant to your route. On each run, the calling points of the next live service are fetched from RTT to build the station list dynamically. An NR alert is included if it either mentions a station on your route, or contains no specific station reference (e.g. a general hot weather advisory). Disruptions affecting stations elsewhere on the same operator are silently skipped.
 
 ### Configuration
 
