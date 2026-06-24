@@ -61,7 +61,58 @@ def parse_time(ts):
         return None
 
 
-def get_nr_disruption_alerts():
+def get_route_stations(from_crs, to_crs, auth):
+    """Return station names for all stops between from_crs and to_crs on the next service."""
+    r = requests.get(
+        f"{RTT_BASE}/gb-nr/location",
+        params={"code": from_crs, "filterTo": to_crs},
+        headers=auth,
+        timeout=10,
+    )
+    if r.status_code != 200:
+        print(f"  Warning: Could not fetch services for {from_crs}→{to_crs}")
+        return []
+
+    services = r.json().get("services") or []
+    if not services:
+        print(f"  Warning: No services found for {from_crs}→{to_crs}, skipping route station lookup")
+        return []
+
+    service = services[0]
+    identity = service["scheduleMetadata"]["identity"]
+    dep_date = service["scheduleMetadata"]["departureDate"]
+
+    detail = requests.get(
+        f"{RTT_BASE}/gb-nr/service",
+        params={"identity": identity, "departureDate": dep_date},
+        headers=auth,
+        timeout=10,
+    )
+    if detail.status_code != 200:
+        print(f"  Warning: Could not fetch service detail for {identity}")
+        return []
+
+    locations = detail.json().get("service", {}).get("locations") or []
+
+    station_names = []
+    in_route = False
+    for loc in locations:
+        short_codes = loc.get("location", {}).get("shortCodes") or []
+        name = loc.get("location", {}).get("name", "")
+
+        if from_crs in short_codes:
+            in_route = True
+
+        if in_route and name:
+            station_names.append(name)
+
+        if to_crs in short_codes:
+            break
+
+    return station_names
+
+
+def get_nr_disruption_alerts(route_station_names):
     print("Checking National Rail disruptions page...")
     try:
         r = requests.get(NR_STATUS_URL, headers=NR_HEADERS, timeout=15)
@@ -86,6 +137,8 @@ def get_nr_disruption_alerts():
     disruptions = page_props.get("data", {}).get("disruptionsData", {}).get("disruptions", [])
     print(f"  {len(disruptions)} total disruption(s) listed on National Rail")
 
+    route_stations_lower = {name.lower() for name in route_station_names}
+
     alerts = []
     for d in disruptions:
         if d.get("incidentCleared"):
@@ -99,6 +152,12 @@ def get_nr_disruption_alerts():
             summary = d["summary"]["json"]["content"][0]["content"][0]["value"]
         except (KeyError, IndexError, TypeError):
             summary = f"Disruption reported near {d.get('name', 'unknown location')}"
+
+        if route_station_names:
+            summary_lower = summary.lower()
+            if not any(station in summary_lower for station in route_stations_lower):
+                print(f"  Skipping (no route station mentioned): {summary[:80]}")
+                continue
 
         matched_names = ", ".join(
             op["name"] for op in operators if op.get("code", "").upper() in watched_operators
@@ -126,6 +185,15 @@ if not access_token:
     sys.exit(1)
 
 auth = {"Authorization": f"Bearer {access_token}"}
+
+# --- Build route station list from live timetable ---
+all_route_stations = set()
+for from_crs, to_crs in routes:
+    print(f"Fetching route stations for {from_crs} → {to_crs}...")
+    stations = get_route_stations(from_crs, to_crs, auth)
+    if stations:
+        print(f"  Stations: {', '.join(stations)}")
+        all_route_stations.update(stations)
 
 disruptions = []
 
@@ -176,7 +244,7 @@ for from_crs, to_crs in routes:
             disruptions.append(msg)
 
 # --- Check National Rail disruption alerts ---
-nr_alerts = get_nr_disruption_alerts()
+nr_alerts = get_nr_disruption_alerts(list(all_route_stations))
 
 timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
