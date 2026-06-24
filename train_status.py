@@ -7,7 +7,8 @@ import sys
 import requests
 from datetime import datetime, timezone
 
-RTT_BASE = "https://data.rtt.io"
+from rtt import RTT_BASE, get_auth_headers
+
 RTT_URL = "https://www.realtimetrains.co.uk/"
 NR_STATUS_URL = "https://www.nationalrail.co.uk/status-and-disruptions/?mode=train-operator-status"
 NR_DISRUPTIONS_URL = "https://www.nationalrail.co.uk/status-and-disruptions"
@@ -184,23 +185,7 @@ def get_nr_disruptions(route_station_names):
     return result
 
 
-# --- Get RTT access token ---
-print("Obtaining API access token...")
-r = requests.get(
-    f"{RTT_BASE}/api/get_access_token",
-    headers={"Authorization": f"Bearer {refresh_token}"},
-    timeout=10,
-)
-if r.status_code != 200:
-    print(f"Error: Failed to obtain access token. HTTP {r.status_code}")
-    sys.exit(1)
-
-access_token = r.json().get("token")
-if not access_token:
-    print("Error: Invalid or expired refresh token.")
-    sys.exit(1)
-
-auth = {"Authorization": f"Bearer {access_token}"}
+auth = get_auth_headers(refresh_token)
 
 # --- Load previous state ---
 prev_state = load_state()
