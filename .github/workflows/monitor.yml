@@ -23,13 +23,17 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
+      - name: Get date for cache key
+        id: date
+        run: echo "today=$(date +'%Y-%m-%d')" >> $GITHUB_OUTPUT
+
       - name: Restore disruption state cache
         uses: actions/cache@v4
         with:
           path: state.json
-          key: train-status-state-${{ github.run_id }}
+          key: train-status-state-${{ steps.date.outputs.today }}-${{ github.run_id }}
           restore-keys: |
-            train-status-state-
+            train-status-state-${{ steps.date.outputs.today }}-
 
       - name: Install dependencies
         run: pip install -r requirements.txt
