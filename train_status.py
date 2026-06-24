@@ -10,7 +10,7 @@ from datetime import datetime, timezone
 RTT_BASE = "https://data.rtt.io"
 RTT_URL = "https://www.realtimetrains.co.uk/"
 NR_STATUS_URL = "https://www.nationalrail.co.uk/status-and-disruptions/?mode=train-operator-status"
-NR_DISRUPTIONS_URL = "https://www.nationalrail.co.uk/service-disruptions/"
+NR_DISRUPTIONS_URL = "https://www.nationalrail.co.uk/status-and-disruptions"
 
 NR_HEADERS = {
     "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
