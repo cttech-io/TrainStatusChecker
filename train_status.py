@@ -92,7 +92,13 @@ def get_route_stations(from_crs, to_crs, auth):
         print(f"  Warning: Could not fetch service detail for {identity}")
         return []
 
-    locations = detail.json().get("service", {}).get("locations") or []
+    detail_data = detail.json()
+    locations = detail_data.get("service", {}).get("locations") or []
+    print(f"  Service {identity} has {len(locations)} locations")
+    if locations:
+        first = locations[0]
+        print(f"  First location keys: {list(first.get('location', {}).keys())}")
+        print(f"  First location: shortCodes={first.get('location', {}).get('shortCodes')} name={first.get('location', {}).get('name')}")
 
     station_names = []
     in_route = False
