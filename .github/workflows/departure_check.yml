@@ -34,6 +34,13 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
+      - name: Cache pip dependencies
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: ~/.cache/pip
+          key: pip-${{ hashFiles('requirements.txt') }}
+          restore-keys: pip-
+
       - name: Install dependencies
         run: pip install -r requirements.txt
 
@@ -46,3 +53,12 @@ jobs:
           FROM_NAME: ${{ github.event.inputs.from_name || github.event.client_payload.from_name || '' }}
           TO_NAME: ${{ github.event.inputs.to_name || github.event.client_payload.to_name || '' }}
         run: python3 departure_check.py
+
+      - name: Notify Discord on failure
+        if: failure()
+        run: |
+          curl -s -X POST "$DISCORD_WEBHOOK_URL" \
+            -H "Content-Type: application/json" \
+            -d "{\"embeds\":[{\"title\":\"❌ Departure Check failed\",\"description\":\"The departure check workflow encountered an error and did not complete. [View logs](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})\",\"color\":15158332}]}"
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
