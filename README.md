@@ -22,6 +22,8 @@ Two checks run on every execution:
 1. **RTT API** — detects formally cancelled or delayed (≥5 min) services on the configured routes
 2. **National Rail status page** — detects active unplanned incidents for the configured operators, filtered to only those relevant to your route. On each run, the calling points of the next live service are fetched from RTT to build the station list dynamically. An NR alert is included if it either mentions a station on your route, or contains no specific station reference (e.g. a general hot weather advisory). Disruptions affecting stations elsewhere on the same operator are silently skipped.
 
+To avoid notification fatigue, results are diffed against the previous run's state. A notification is only sent when something changes — a new disruption appears, an existing one is updated, or one is cleared. Runs where nothing has changed are silent. State is persisted between runs using the GitHub Actions cache (`state.json`). The cache has a 7-day TTL; if it is evicted, the next run treats all active disruptions as new.
+
 ### Configuration
 
 | Variable | Required | Description |
@@ -40,8 +42,8 @@ Two checks run on every execution:
 
 | Trigger | Behaviour |
 |---|---|
-| Scheduled (every 30 min) | Notifies only when disruptions are found |
-| Manual (`workflow_dispatch`) | Always notifies — red alert if disruptions, green all-clear if none |
+| Scheduled (every 30 min) | Notifies only when something has changed since the last run (new, updated, or cleared disruption) |
+| Manual (`workflow_dispatch`) | Always notifies — shows full current state regardless of previous run; updates the state cache |
 
 ### Run locally
 
