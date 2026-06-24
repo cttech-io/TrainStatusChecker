@@ -76,7 +76,8 @@ def save_state(state):
 
 
 def get_route_stations(from_crs, to_crs, auth):
-    """Return station names for all stops between from_crs and to_crs on the next service."""
+    """Return the union of station names across the next few services between from_crs and to_crs.
+    Using multiple services ensures all intermediate stops are captured regardless of service pattern."""
     r = requests.get(
         f"{RTT_BASE}/gb-nr/location",
         params={"code": from_crs, "filterTo": to_crs},
@@ -92,38 +93,36 @@ def get_route_stations(from_crs, to_crs, auth):
         print(f"  Warning: No services found for {from_crs}→{to_crs}, skipping route station lookup")
         return []
 
-    service = services[0]
-    identity = service["scheduleMetadata"]["identity"]
-    dep_date = service["scheduleMetadata"]["departureDate"]
+    all_stations = set()
+    for service in services[:3]:
+        identity = service["scheduleMetadata"]["identity"]
+        dep_date = service["scheduleMetadata"]["departureDate"]
 
-    detail = requests.get(
-        f"{RTT_BASE}/gb-nr/service",
-        params={"identity": identity, "departureDate": dep_date},
-        headers=auth,
-        timeout=10,
-    )
-    if detail.status_code != 200:
-        print(f"  Warning: Could not fetch service detail for {identity}")
-        return []
+        detail = requests.get(
+            f"{RTT_BASE}/gb-nr/service",
+            params={"identity": identity, "departureDate": dep_date},
+            headers=auth,
+            timeout=10,
+        )
+        if detail.status_code != 200:
+            continue
 
-    locations = detail.json().get("service", {}).get("locations") or []
+        locations = detail.json().get("service", {}).get("locations") or []
+        in_route = False
+        for loc in locations:
+            short_codes = loc.get("location", {}).get("shortCodes") or []
+            name = loc.get("location", {}).get("description", "")
 
-    station_names = []
-    in_route = False
-    for loc in locations:
-        short_codes = loc.get("location", {}).get("shortCodes") or []
-        name = loc.get("location", {}).get("description", "")
+            if from_crs in short_codes:
+                in_route = True
 
-        if from_crs in short_codes:
-            in_route = True
+            if in_route and name:
+                all_stations.add(name)
 
-        if in_route and name:
-            station_names.append(name)
+            if to_crs in short_codes:
+                break
 
-        if to_crs in short_codes:
-            break
-
-    return station_names
+    return list(all_stations)
 
 
 def get_nr_disruptions(route_station_names):
