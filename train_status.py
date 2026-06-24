@@ -155,8 +155,9 @@ def get_nr_disruption_alerts(route_station_names):
 
         if route_station_names:
             summary_lower = summary.lower()
-            if not any(station in summary_lower for station in route_stations_lower):
-                print(f"  Skipping (no route station mentioned): {summary[:80]}")
+            route_station_mentioned = any(station in summary_lower for station in route_stations_lower)
+            if not route_station_mentioned and "between" in summary_lower:
+                print(f"  Skipping (specific non-route stations): {summary[:80]}")
                 continue
 
         matched_names = ", ".join(
